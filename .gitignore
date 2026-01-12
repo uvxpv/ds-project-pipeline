@@ -1,0 +1,20 @@
+cat > .gitignore << 'EOF'
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Data / artifacts
+data/
+!data/raw/.gitkeep
+models/
+mlruns/
+artifacts/
+*.joblib
+*.pkl
+
+# OS
+.DS_Store
+EOF
+touch data/raw/.gitkeep
