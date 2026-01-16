@@ -4,6 +4,7 @@ from sqlalchemy import create_engine, text
 
 CSV_PATH = "data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv"
 DB_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://app:app@localhost:5432/app")
+# TODO: get this from the environment later
 
 YES_NO_TO_BOOL = {
     "Yes": True,
@@ -34,9 +35,9 @@ def main():
     df["tenure"] = pd.to_numeric(df["tenure"], errors="coerce").fillna(0).astype(int)
     df["MonthlyCharges"] = pd.to_numeric(df["MonthlyCharges"], errors="coerce")
 
-    # TotalCharges sometimes blank -> NULL
+    # TotalCharges sometimes blank -> 0
     df["TotalCharges"] = pd.to_numeric(
-        df["TotalCharges"].astype(str).str.strip().replace({"": None}), errors="coerce"
+        df["TotalCharges"].astype(str).str.strip().replace({"": 0}), errors="coerce"
     )
 
     # Rename to match SQL schema
