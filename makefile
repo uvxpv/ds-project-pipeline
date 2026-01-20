@@ -12,3 +12,6 @@ ps:
 
 ingest:
 	conda run -n $(CONDA_ENV) python src/ingest.py
+	
+train-baseline:
+	conda run -n churn python src/train_baseline_v1.py
