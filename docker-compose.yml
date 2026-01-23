@@ -10,6 +10,27 @@ services:
     volumes:
       - dbdata:/var/lib/postgresql/data
       - ./sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile.train
+    environment:
+      # IMPORTANT: inside compose network, Postgres host is the service name "db"
+      DATABASE_URL: postgresql+psycopg2://app:app@db:5432/app
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      # bind mount so artifacts/code are on your Mac repo
+      - ./:/app
+    command: ["python", "src/train_baseline_v1.py"]
 
 volumes:
   dbdata:

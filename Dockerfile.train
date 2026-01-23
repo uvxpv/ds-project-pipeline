@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Minimal deps; psycopg2-binary means we don't need build tooling
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Copy code for CI-style builds (bind mount will override at runtime locally)
+COPY . /app
+
+CMD ["python", "src/train_baseline_v1.py"]
