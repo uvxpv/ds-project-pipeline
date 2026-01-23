@@ -40,8 +40,8 @@ def load_data() -> pd.DataFrame:
 
 
 def build_base_pipeline(X: pd.DataFrame) -> Pipeline:
-    num_cols = X.select_dtypes(include=["int64", "float64"]).columns.tolist()
-    cat_cols = X.select_dtypes(include=["object", "bool"]).columns.tolist()
+    num_cols = X.select_dtypes(include=[np.number]).columns.tolist()
+    cat_cols = [c for c in X.columns if c not in num_cols]
 
     numeric_transformer = Pipeline(
         steps=[
@@ -105,6 +105,9 @@ def main():
     target = "churn"
 
     X = df.drop(columns=[target])
+    for id_col in ["customer_id", "customerID"]:
+        if id_col in X.columns:
+            X = X.drop(columns=[id_col])
     y = df[target].astype(int).values
 
     # Split into train/val/test: 60/20/20
