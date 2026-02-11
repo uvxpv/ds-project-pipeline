@@ -1,10 +1,9 @@
-import os, json
 from pathlib import Path
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
@@ -21,6 +20,7 @@ from sklearn.metrics import (
 )
 import joblib
 from dotenv import load_dotenv
+import subprocess, json, os
 
 load_dotenv()
 
@@ -33,10 +33,10 @@ RANDOM_STATE = 42
 ARTIFACTS_DIR = Path("artifacts")
 
 
-def load_data() -> pd.DataFrame:
+def load_data() -> tuple[pd.DataFrame, str, object]:
     db_url = os.getenv("DATABASE_URL")
     engine = create_engine(db_url)
-    return pd.read_sql("SELECT * FROM raw_churn;", engine)
+    return pd.read_sql("SELECT * FROM raw_churn;", engine), db_url, engine
 
 
 def build_base_pipeline(X: pd.DataFrame) -> Pipeline:
@@ -101,7 +101,7 @@ def metrics_at_threshold(y_true: np.ndarray, proba: np.ndarray, t: float) -> dic
 
 
 def main():
-    df = load_data()
+    df, db_url, engine = load_data()
     target = "churn"
 
     X = df.drop(columns=[target])
@@ -165,6 +165,41 @@ def main():
     # Save metrics + chosen threshold
     with open(run_dir / "metrics.json", "w") as f:
         json.dump(out, f, indent=2)
+
+    git_commit = None
+    try:
+        git_commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True
+        ).strip()
+    except Exception:
+        pass
+
+    docker_image = os.getenv("DOCKER_IMAGE")  # optional, can be None
+    data_query = "SELECT * FROM raw_churn;"  # keep it simple for now
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+            INSERT INTO ml.model_runs
+            (run_id, model_name, artifact_path, data_query, random_state, threshold, metrics, git_commit, docker_image)
+            VALUES
+            (:run_id, :model_name, :artifact_path, :data_query, :random_state, :threshold,
+            CAST(:metrics AS jsonb), :git_commit, :docker_image)
+            """
+            ),
+            {
+                "run_id": run_id,
+                "model_name": "logreg_balanced + sigmoid_calibration",
+                "artifact_path": str((run_dir / "model.joblib").as_posix()),
+                "data_query": data_query,
+                "random_state": RANDOM_STATE,
+                "threshold": float(best_t),
+                "metrics": json.dumps(out),
+                "git_commit": git_commit,
+                "docker_image": docker_image,
+            },
+        )
 
     print("Saved run to:", run_dir)
     print("Chosen threshold (val):", best_t)
