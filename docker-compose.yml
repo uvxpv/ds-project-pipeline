@@ -28,7 +28,7 @@ services:
         condition: service_healthy
     working_dir: /app
     volumes:
-      # bind mount so artifacts/code are on your Mac repo
+      # bind mount so artifacts/code are on Mac repo
       - ./:/app
     command: ["python", "src/train_baseline_v1.py"]
 
