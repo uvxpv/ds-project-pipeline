@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U app -d app"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: postgresql+psycopg2://app:app@localhost:5432/app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff pytest
+
+      - name: Lint
+        run: |
+          ruff check .
+
+      - name: Create schema
+        run: |
+          psql "$DATABASE_URL" -f sql/01_schema.sql
+          psql "$DATABASE_URL" -f sql/02_ml_schema.sql
+
+      - name: Ingest
+        run: |
+          python src/ingest.py
+
+      - name: Train baseline (smoke)
+        run: |
+          python src/train_baseline_v1.py
+
+      - name: Batch score (smoke)
+        run: |
+          python src/score_batch.py
+
+      - name: Run tests
+        run: |
+          pytest -q
