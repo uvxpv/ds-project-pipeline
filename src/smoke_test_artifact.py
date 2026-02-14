@@ -4,8 +4,8 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
-from sqlalchemy import create_engine
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
 
 load_dotenv()
 

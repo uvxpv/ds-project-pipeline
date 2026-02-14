@@ -164,7 +164,7 @@ def main():
             "pred_label": int(lbl),
             "threshold": threshold,
         }
-        for cid, p, lbl in zip(customer_ids, proba_churn, pred_label)
+        for cid, p, lbl in zip(customer_ids, proba_churn, pred_label, strict=True)
     ]
     with engine.begin() as conn:
         conn.execute(upsert_sql, rows)

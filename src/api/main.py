@@ -1,9 +1,10 @@
 import os
+from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
-from contextlib import asynccontextmanager
-from dotenv import load_dotenv
 
 load_dotenv()
 DB_URL_DEFAULT = "postgresql+psycopg2://app:app@localhost:5432/app"
