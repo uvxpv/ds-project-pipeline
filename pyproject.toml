@@ -1,0 +1,46 @@
+[project]
+name = "ds-project-pipeline"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+# -------------------------
+# Ruff (lint + format)
+# -------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+  "notebooks/**",
+  ".venv/**",
+  "artifacts/**",
+  "data/**",
+]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+]
+ignore = [
+  "E501",  # line-length
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# -------------------------
+# Pytest
+# -------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
