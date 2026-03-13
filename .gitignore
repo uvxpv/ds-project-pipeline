@@ -18,3 +18,7 @@ artifacts/
 .DS_Store
 EOF
 touch data/raw/.gitkeep
+
+mlflow.db
+*.egg-info/
+mlartifacts/

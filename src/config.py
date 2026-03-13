@@ -34,7 +34,7 @@ MODEL_NAME = "logreg_balanced + sigmoid_calibration"
 ARTIFACT_PREFIX = "baseline_v1"
 
 # ── MLflow ────────────────────────────────────────────────────────────
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "mlruns")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
 MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "churn-baseline")
 
 # ── API ───────────────────────────────────────────────────────────────
