@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 
 import joblib
@@ -7,9 +6,9 @@ import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 
-load_dotenv()
+from src.config import ARTIFACTS_DIR, DB_URL
 
-ARTIFACTS_DIR = Path("artifacts")
+load_dotenv()
 
 
 def latest_run_dir(prefix="baseline_v1_") -> Path:
@@ -30,8 +29,7 @@ def main():
     metrics = json.loads(metrics_path.read_text())
     threshold = metrics["val"]["threshold"]
 
-    db_url = os.getenv("DATABASE_URL")
-    engine = create_engine(db_url)
+    engine = create_engine(DB_URL)
 
     df = pd.read_sql("SELECT * FROM raw_churn LIMIT 50;", engine)
     X = df.drop(columns=["churn"])

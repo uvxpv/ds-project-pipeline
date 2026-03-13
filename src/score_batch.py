@@ -4,8 +4,6 @@ writes results to ml.predictions with upsert.
 """
 
 import argparse
-import os
-import sys
 from pathlib import Path
 
 import joblib
@@ -13,10 +11,9 @@ import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
-load_dotenv()
+from src.config import DB_URL, ID_COLS, PROJECT_ROOT, TARGET_COL
 
-# Project root (parent of src/)
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv()
 
 
 def resolve_artifact_path(artifact_path: str) -> Path:
@@ -84,12 +81,7 @@ def main():
     )
     args = parser.parse_args()
 
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        print("ERROR: DATABASE_URL not set", file=sys.stderr)
-        sys.exit(1)
-
-    engine = create_engine(db_url)
+    engine = create_engine(DB_URL)
 
     # 1. Fetch run
     print("Fetching model run...")
@@ -110,12 +102,10 @@ def main():
     n_customers = len(df)
 
     # Align with training: drop target and id cols for features
-    target = "churn"
-    id_cols = ["customer_id", "customerID"]
-    if target not in df.columns:
-        raise ValueError(f"Target column '{target}' not in data")
-    X = df.drop(columns=[target])
-    for id_col in id_cols:
+    if TARGET_COL not in df.columns:
+        raise ValueError(f"Target column '{TARGET_COL}' not in data")
+    X = df.drop(columns=[TARGET_COL])
+    for id_col in ID_COLS:
         if id_col in X.columns:
             X = X.drop(columns=[id_col])
     customer_id_col = "customer_id" if "customer_id" in df.columns else "customerID"
@@ -128,19 +118,9 @@ def main():
     n_scored = len(proba_churn)
 
     # 5. Sanity checks
-    print("\n--- Sanity checks ---")
-    print(f"  n_scored: {n_scored}")
-    print(f"  n_customers: {n_customers}")
-    if n_scored != n_customers:
-        print(f"  WARNING: n_scored ({n_scored}) != n_customers ({n_customers})")
-    else:
-        print("  OK: n_scored == n_customers")
-
-    print(f"  proba_churn min: {proba_churn.min():.4f}")
-    print(f"  proba_churn max: {proba_churn.max():.4f}")
-    print(f"  proba_churn mean: {proba_churn.mean():.4f}")
-    n_positive = int(pred_label.sum())
-    print(f"  n_predicted_positive (at threshold={threshold}): {n_positive}")
+    assert (
+        n_scored == n_customers
+    ), f"n_scored ({n_scored}) != n_customers ({n_customers})"
 
     # 6. Upsert to ml.predictions
     print("\nWriting to ml.predictions...")

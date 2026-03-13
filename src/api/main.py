@@ -1,14 +1,10 @@
-import os
 from contextlib import asynccontextmanager
 
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import create_engine, text
 
-load_dotenv()
-DB_URL_DEFAULT = "postgresql+psycopg2://app:app@localhost:5432/app"
-DB_URL = os.getenv("DATABASE_URL", DB_URL_DEFAULT)
+from src.config import DB_URL, TOP_AT_RISK_MAX
 
 
 @asynccontextmanager
@@ -86,7 +82,7 @@ def predict_by_id(req: PredictByIdRequest):
 
 @app.get("/top_at_risk")
 def top_at_risk(n: int = 20):
-    n = max(1, min(n, 500))  # safety cap
+    n = max(1, min(n, TOP_AT_RISK_MAX))
     with engine.begin() as conn:
         rows = (
             conn.execute(

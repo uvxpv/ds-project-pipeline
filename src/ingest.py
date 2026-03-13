@@ -1,18 +1,12 @@
-import os
-
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-CSV_PATH = "data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv"
-DB_URL = os.getenv("DATABASE_URL", "postgresql+psycopg2://app:app@localhost:5432/app")
-# TODO: get this from the environment later
+from src.config import DB_URL, EXPECTED_RAW_COLS, RAW_CSV_PATH, RENAME_MAP, YES_NO_COLS
 
 YES_NO_TO_BOOL = {
     "Yes": True,
     "No": False,
 }
-
-YES_NO_COLS = ["Partner", "Dependents", "PhoneService", "PaperlessBilling", "Churn"]
 
 
 def yn_to_bool(x):
@@ -23,7 +17,7 @@ def yn_to_bool(x):
 
 
 def main():
-    df = pd.read_csv(CSV_PATH)
+    df = pd.read_csv(RAW_CSV_PATH)
 
     # Convert pure Yes/No columns to bool
     for c in YES_NO_COLS:
@@ -41,57 +35,9 @@ def main():
         df["TotalCharges"].astype(str).str.strip().replace({"": 0}), errors="coerce"
     )
 
-    # Rename to match SQL schema
-    df = df.rename(
-        columns={
-            "customerID": "customer_id",
-            "SeniorCitizen": "senior_citizen",
-            "Partner": "partner",
-            "Dependents": "dependents",
-            "PhoneService": "phone_service",
-            "MultipleLines": "multiple_lines",
-            "InternetService": "internet_service",
-            "OnlineSecurity": "online_security",
-            "OnlineBackup": "online_backup",
-            "DeviceProtection": "device_protection",
-            "TechSupport": "tech_support",
-            "StreamingTV": "streaming_tv",
-            "StreamingMovies": "streaming_movies",
-            "Contract": "contract",
-            "PaperlessBilling": "paperless_billing",
-            "PaymentMethod": "payment_method",
-            "MonthlyCharges": "monthly_charges",
-            "TotalCharges": "total_charges",
-            "Churn": "churn",
-            "gender": "gender",
-            "tenure": "tenure",
-        }
-    )
+    df = df.rename(columns=RENAME_MAP)
 
-    expected_cols = [
-        "customer_id",
-        "gender",
-        "senior_citizen",
-        "partner",
-        "dependents",
-        "tenure",
-        "phone_service",
-        "multiple_lines",
-        "internet_service",
-        "online_security",
-        "online_backup",
-        "device_protection",
-        "tech_support",
-        "streaming_tv",
-        "streaming_movies",
-        "contract",
-        "paperless_billing",
-        "payment_method",
-        "monthly_charges",
-        "total_charges",
-        "churn",
-    ]
-    df = df[expected_cols]
+    df = df[EXPECTED_RAW_COLS]
 
     engine = create_engine(DB_URL)
 
