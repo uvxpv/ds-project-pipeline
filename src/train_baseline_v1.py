@@ -193,7 +193,7 @@ def main():
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
-    with mlflow.start_run(run_name=f"{ARTIFACT_PREFIX}_{run_id}") as mlflow_run:
+    with mlflow.start_run(run_name=f"{ARTIFACT_PREFIX}_{run_id}"):
         mlflow.log_params(
             {
                 "random_state": RANDOM_STATE,
