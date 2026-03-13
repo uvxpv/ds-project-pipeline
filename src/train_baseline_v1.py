@@ -5,10 +5,13 @@ from datetime import datetime
 from pathlib import Path
 
 import joblib
+import mlflow
+import mlflow.sklearn
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.frozen import FrozenEstimator
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -23,15 +26,22 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sqlalchemy import create_engine, text
 
+from src.config import (
+    ARTIFACTS_DIR,
+    ARTIFACT_PREFIX,
+    C_FN,
+    C_FP,
+    ID_COLS,
+    MLFLOW_EXPERIMENT_NAME,
+    MLFLOW_TRACKING_URI,
+    MODEL_NAME,
+    RANDOM_STATE,
+    TARGET_COL,
+    TEST_SIZE,
+    VAL_TEST_SPLIT,
+)
+
 load_dotenv()
-
-# cost assumption (tune later)
-C_FN = 1  # missed churn
-C_FP = 1  # false alarm
-
-RANDOM_STATE = 42
-
-ARTIFACTS_DIR = Path("artifacts")
 
 
 def load_data() -> tuple[pd.DataFrame, str, object]:
@@ -103,20 +113,23 @@ def metrics_at_threshold(y_true: np.ndarray, proba: np.ndarray, t: float) -> dic
 
 def main():
     df, db_url, engine = load_data()
-    target = "churn"
 
-    X = df.drop(columns=[target])
-    for id_col in ["customer_id", "customerID"]:
+    X = df.drop(columns=[TARGET_COL])
+    for id_col in ID_COLS:
         if id_col in X.columns:
             X = X.drop(columns=[id_col])
-    y = df[target].astype(int).values
+    y = df[TARGET_COL].astype(int).values
 
     # Split into train/val/test: 60/20/20
     X_train, X_tmp, y_train, y_tmp = train_test_split(
-        X, y, test_size=0.4, random_state=RANDOM_STATE, stratify=y
+        X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
     )
     X_val, X_test, y_val, y_test = train_test_split(
-        X_tmp, y_tmp, test_size=0.5, random_state=RANDOM_STATE, stratify=y_tmp
+        X_tmp,
+        y_tmp,
+        test_size=VAL_TEST_SPLIT,
+        random_state=RANDOM_STATE,
+        stratify=y_tmp,
     )
 
     base = build_base_pipeline(X_train)
@@ -125,7 +138,7 @@ def main():
     base.fit(X_train, y_train)
 
     # Calibrate on validation set (sigmoid)
-    cal = CalibratedClassifierCV(base, method="sigmoid", cv="prefit")
+    cal = CalibratedClassifierCV(FrozenEstimator(base), method="sigmoid")
     cal.fit(X_val, y_val)
 
     # Pick threshold on validation set by cost
@@ -157,7 +170,7 @@ def main():
     }
 
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = ARTIFACTS_DIR / f"baseline_v1_{run_id}"
+    run_dir = ARTIFACTS_DIR / f"{ARTIFACT_PREFIX}_{run_id}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
     # Save calibrated model (includes preprocessing + base model)
@@ -168,15 +181,46 @@ def main():
         json.dump(out, f, indent=2)
 
     git_commit = None
-    try:
-        git_commit = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], text=True
-        ).strip()
-    except Exception:
-        pass
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"], capture_output=True, text=True
+    )
+    if result.returncode == 0:
+        git_commit = result.stdout.strip()
 
-    docker_image = os.getenv("DOCKER_IMAGE")  # optional, can be None
-    data_query = "SELECT * FROM raw_churn;"  # keep it simple for now
+    docker_image = os.getenv("DOCKER_IMAGE")
+    data_query = "SELECT * FROM raw_churn;"
+
+    # ── MLflow tracking ───────────────────────────────────────────────
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
+
+    with mlflow.start_run(run_name=f"{ARTIFACT_PREFIX}_{run_id}") as mlflow_run:
+        mlflow.log_params(
+            {
+                "random_state": RANDOM_STATE,
+                "test_size": TEST_SIZE,
+                "val_test_split": VAL_TEST_SPLIT,
+                "C_FN": C_FN,
+                "C_FP": C_FP,
+                "threshold": float(best_t),
+                "model_name": MODEL_NAME,
+            }
+        )
+        mlflow.log_metrics(
+            {
+                "val_roc_auc": out["val"]["roc_auc"],
+                "val_pr_auc": out["val"]["pr_auc"],
+                "test_roc_auc": out["test"]["roc_auc"],
+                "test_pr_auc": out["test"]["pr_auc"],
+                "best_val_cost": best_cost,
+            }
+        )
+        mlflow.log_artifact(str(run_dir / "metrics.json"))
+        mlflow.sklearn.log_model(
+            cal,
+            artifact_path="model",
+            registered_model_name="churn-baseline",
+        )
 
     with engine.begin() as conn:
         conn.execute(
@@ -191,7 +235,7 @@ def main():
             ),
             {
                 "run_id": run_id,
-                "model_name": "logreg_balanced + sigmoid_calibration",
+                "model_name": MODEL_NAME,
                 "artifact_path": str((run_dir / "model.joblib").as_posix()),
                 "data_query": data_query,
                 "random_state": RANDOM_STATE,
@@ -201,12 +245,6 @@ def main():
                 "docker_image": docker_image,
             },
         )
-
-    print("Saved run to:", run_dir)
-    print("Chosen threshold (val):", best_t)
-    print("TEST ROC-AUC:", out["test"]["roc_auc"])
-    print("TEST PR-AUC :", out["test"]["pr_auc"])
-    print("TEST confusion:", out["test"]["confusion_matrix"])
 
 
 if __name__ == "__main__":
