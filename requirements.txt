@@ -5,3 +5,7 @@ psycopg2-binary
 scikit-learn==1.7.1
 joblib
 python-dotenv
+mlflow
+fastapi
+uvicorn
+httpx
