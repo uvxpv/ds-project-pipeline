@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.frozen import FrozenEstimator
 from sklearn.compose import ColumnTransformer
+from sklearn.frozen import FrozenEstimator
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -26,8 +26,8 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sqlalchemy import create_engine, text
 
 from src.config import (
-    ARTIFACTS_DIR,
     ARTIFACT_PREFIX,
+    ARTIFACTS_DIR,
     C_FN,
     C_FP,
     ID_COLS,
