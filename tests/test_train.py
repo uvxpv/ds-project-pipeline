@@ -5,7 +5,6 @@ or MLflow remote server.
 """
 
 import numpy as np
-import pytest
 
 from src.train_baseline_v1 import (
     build_base_pipeline,

@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 from datetime import datetime
-from pathlib import Path
 
 import joblib
 import mlflow

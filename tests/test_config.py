@@ -1,7 +1,5 @@
 """Tests for src/config.py — make sure constants are sane."""
 
-from pathlib import Path
-
 from src.config import (
     ARTIFACTS_DIR,
     C_FN,

@@ -4,7 +4,7 @@ All tests use the FastAPI TestClient and mock the database engine so that
 no live Postgres connection is needed.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
