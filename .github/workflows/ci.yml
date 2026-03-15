@@ -46,8 +46,7 @@ jobs:
 
       - name: Create schema
         run: |
-          psql "$DATABASE_URL" -f sql/01_schema.sql
-          psql "$DATABASE_URL" -f sql/02_ml_schema.sql
+          python src/setup_db.py
 
       - name: Ingest
         run: |

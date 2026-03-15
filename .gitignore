@@ -1,13 +1,14 @@
-cat > .gitignore << 'EOF'
 # Python
 __pycache__/
 *.pyc
 .venv/
 .env
 
-# Data / artifacts
+# Data / artifacts  (track the raw CSV, exclude everything else)
 data/
-!data/raw/.gitkeep
+!data/
+!data/raw/
+!data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv
 models/
 mlruns/
 artifacts/
@@ -16,8 +17,6 @@ artifacts/
 
 # OS
 .DS_Store
-EOF
-touch data/raw/.gitkeep
 
 mlflow.db
 *.egg-info/
