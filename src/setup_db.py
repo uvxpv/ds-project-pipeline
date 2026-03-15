@@ -32,7 +32,7 @@ def setup_database(sql_files: list[str]) -> None:
                 sys.exit(1)
 
             print(f"Executing {sql_file}...")
-            with open(sql_path, "r") as f:
+            with open(sql_path) as f:
                 sql_content = f.read()
                 cursor.execute(sql_content)
             print(f"✓ {sql_file} executed successfully")
