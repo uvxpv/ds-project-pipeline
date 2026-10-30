@@ -1,0 +1,37 @@
+# Secrets — must never reach the image
+.env
+.env.*
+
+# VCS / CI
+.git
+.github
+.gitignore
+.pre-commit-config.yaml
+
+# Training + local-dev assets the serving image has no use for
+artifacts/
+mlartifacts/
+mlruns/
+mlflow.db
+data/
+notebooks/
+sql/
+tests/
+Dockerfile.train
+docker-compose.yml
+makefile
+requirements.txt
+
+# Caches / build output
+__pycache__/
+*.pyc
+*.joblib
+*.pkl
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.cursor/
+
+# OS
+.DS_Store

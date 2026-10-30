@@ -1,0 +1,31 @@
+# Serving-only dependencies for the Cloud Run image.
+#
+# Deliberately NOT requirements.txt: the API (src/api/main.py + src/config.py)
+# never imports pandas, scikit-learn, mlflow or joblib — those belong to the
+# training path. Leaving them out keeps the image at ~206 MB, so the Artifact
+# Registry free tier (0.5 GB) stays comfortable even with 3 retained versions.
+#
+# Fully pinned, including transitives, so a rebuild of an old commit produces
+# the same image. Regenerate with:
+#   docker run --rm churn-api:local pip freeze
+
+# ── direct ───────────────────────────────────────────────────────────────────
+fastapi==0.162.0
+uvicorn==0.54.0
+pydantic==2.14.1
+SQLAlchemy==2.1.6
+psycopg2-binary==2.9.13
+python-dotenv==1.2.4
+
+# ── transitive ───────────────────────────────────────────────────────────────
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.15.1
+click==8.5.0
+h11==0.16.0
+idna==3.20
+opentelemetry-api==1.45.1
+pydantic_core==2.50.1
+starlette==1.10.0
+typing-inspection==0.4.4
+typing_extensions==4.16.0
