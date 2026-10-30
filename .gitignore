@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .venv/
 .env
+.env.*
 
 # Data / artifacts  (track the raw CSV, exclude everything else)
 data/
