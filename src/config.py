@@ -40,6 +40,11 @@ MLFLOW_EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "churn-baseline")
 # ── API ───────────────────────────────────────────────────────────────
 TOP_AT_RISK_MAX = 500
 
+# Shared secret for the data endpoints. Injected by Cloud Run from Secret
+# Manager; empty locally unless you export it. Empty means the guarded routes
+# refuse to serve (fail closed) rather than falling open.
+API_KEY = os.getenv("API_KEY", "")
+
 # ── Feature / target columns ─────────────────────────────────────────
 TARGET_COL = "churn"
 ID_COLS = ["customer_id", "customerID"]
