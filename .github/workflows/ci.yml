@@ -64,3 +64,73 @@ jobs:
       - name: Run tests
         run: |
           pytest -q
+  # ── Deploy ─────────────────────────────────────────────────────────────────
+  # Gated on `test`: a red test suite means no deploy. Only pushes to main
+  # deploy — pull requests run the test job alone.
+  deploy:
+    needs: test
+    # vars.GCP_PROJECT_ID gates the job on the GCP setup actually existing, so the
+    # workflow is skipped rather than failing red before the one-time setup is done.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # required to mint the OIDC token for Workload Identity Federation
+
+    env:
+      REGION: europe-west1
+      REPO: apps
+      SERVICE: churn-api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Keyless auth: GitHub mints a short-lived OIDC token, GCP exchanges it
+      # for SA credentials. No service-account JSON key exists anywhere.
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github/providers/github
+          service_account: github-deployer@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      # Built here rather than with `gcloud run deploy --source`, which would
+      # pull in Cloud Build and a GCS staging bucket. Tagged by commit SHA only
+      # — immutable tags mean a revision always points at a known image.
+      - name: Build and push image
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${REPO}/${SERVICE}:${GITHUB_SHA}"
+          docker build -t "${IMAGE}" .
+          docker push "${IMAGE}"
+          echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${SERVICE}" \
+            --image="${IMAGE}" \
+            --region="${REGION}" \
+            --service-account="churn-api-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --allow-unauthenticated \
+            --min-instances=0 \
+            --max-instances=1 \
+            --cpu=1 \
+            --memory=512Mi \
+            --concurrency=80 \
+            --timeout=30 \
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest,API_KEY=API_KEY:latest \
+            --quiet
+
+      - name: Smoke test
+        run: |
+          URL="$(gcloud run services describe "${SERVICE}" --region="${REGION}" --format='value(status.url)')"
+          echo "Deployed: ${URL}"
+          curl -fsS --retry 5 --retry-delay 3 "${URL}/health"
+          # The guard must be live in production, not just in the test suite.
+          CODE="$(curl -s -o /dev/null -w '%{http_code}' "${URL}/runs/latest")"
+          test "${CODE}" = "401" || { echo "Expected 401 on unguarded call, got ${CODE}"; exit 1; }
