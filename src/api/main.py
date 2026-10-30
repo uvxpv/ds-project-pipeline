@@ -6,11 +6,16 @@ from sqlalchemy import create_engine, text
 
 from src.config import DB_URL, TOP_AT_RISK_MAX
 
+engine = None
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global engine
-    engine = create_engine(DB_URL)
+    # pool_pre_ping: Neon suspends its compute after ~5 min of inactivity, which
+    # silently kills pooled connections. Without the pre-ping the first request
+    # after an idle period fails with a stale-connection error.
+    engine = create_engine(DB_URL, pool_pre_ping=True, pool_recycle=300)
     yield
 
 
